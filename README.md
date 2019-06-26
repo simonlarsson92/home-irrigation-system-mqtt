@@ -1,6 +1,6 @@
 # Home irrigation system
 
-Introduction 
+## Introduction
 This is a home irrigation system  using MQTT and home assistant to water my plants.
 
 # Getting Started
