@@ -38,7 +38,10 @@ char topic[32];
 
 //Light sensor
 unsigned long previousMillis = 0;        // will store last time light sensor was updated
-const long interval = 300000;  
+const long interval = 300000;
+
+//Watering constant
+const int water_time = 30000;
 
 void setup() {
   // Initiate the pins
@@ -131,7 +134,7 @@ void callback(char* topic, byte* payload, unsigned int length)
     snprintf(msg, 64, "Watering", device_id);
     client.publish(topic,msg);
     start_water_pump();
-    delay(30000); //Water for 30seconds
+    delay(water_time); //Water for 30seconds
     Serial.println("Stopping waterpump");
     stop_water_pump();
     Serial.println("Closing solenoid");
