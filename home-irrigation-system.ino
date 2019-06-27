@@ -15,11 +15,13 @@
 int sensor_pin = A0;
 
 //Digital outputs
+int float_sensor = D2;
 int solenoid_1 = D3;
 int water_pump = D4;
 int light_sensor_vcc = D5;
 int moisture_sensor_vcc = D6;
 int moisture_sensor2_vcc = D7;
+
 
 //WIFI
 const char ssid[] = WIFI_SSID;        // SSID of wifi network
@@ -35,13 +37,17 @@ const char device_id[] = DEVICE_ID;                     // MQTT device name
 PubSubClient client(espClient);
 char msg[64];
 char topic[32];
+char message_buff[100];
 
 //Light sensor
 unsigned long previousMillis = 0;        // will store last time light sensor was updated
 const long interval = 300000;
 
-//Watering constant
-const int water_time = 30000;
+//Watering
+const long water_time = 30000;
+unsigned long WateringStart = 0;
+int float_sensor_state = 1;
+unsigned long currentMillis = 0;
 
 void setup() {
   // Initiate the pins
@@ -55,6 +61,7 @@ void setup() {
   digitalWrite(solenoid_1, LOW);
   pinMode(water_pump, OUTPUT);
   digitalWrite(water_pump, LOW);
+  pinMode(float_sensor, INPUT_PULLUP);
 
   //Initiate WIFI
   Serial.begin(9600);
@@ -112,36 +119,66 @@ void callback(char* topic, byte* payload, unsigned int length)
   if(strcmp(msg,"check_moisture") == 0) 
   {
     Serial.println("Reading moisture sensor 1");
-    int sensor_1 = read_moisture_sensor1();
+    int sensor_1 = read_moisture_sensor();
     snprintf(topic, 32, "home/garden_moisture_sensor_1");
-    snprintf(msg, 64, sensor_1, device_id);
+    String pubString =String(sensor_1);
+    pubString.toCharArray(message_buff,pubString.length()+1);
+    snprintf(msg, 64, message_buff, device_id);
     client.publish(topic,msg); 
     delay(1000);
     Serial.println("Reading moisture sensor 2");
     int sensor_2 = read_moisture_sensor2(); 
     snprintf(topic, 32, "home/garden_moisture_sensor_2");
-    snprintf(msg, 64, sensor_2, device_id);
+    String pubString2 =String(sensor_2);
+    pubString.toCharArray(message_buff,pubString2.length()+1);
+    snprintf(msg, 64, message_buff, device_id);
     client.publish(topic,msg); 
     
   }
   else if(strcmp(msg,"water_zone_1") == 0)
   {
-    Serial.println("Opening Solenoid");
-    open_solenoid();
-    delay(500);
-    Serial.println("Starting waterpump");
-    snprintf(topic, 32, "home/garden_water_zone_1");
-    snprintf(msg, 64, "Watering", device_id);
-    client.publish(topic,msg);
-    start_water_pump();
-    delay(water_time); //Water for 30seconds
-    Serial.println("Stopping waterpump");
-    stop_water_pump();
-    Serial.println("Closing solenoid");
-    close_solenoid();
-    snprintf(topic, 32, "home/garden_water_zone_1");
-    snprintf(msg, 64, "Done", device_id);
-    client.publish(topic,msg); 
+    float_sensor_state = digitalRead(float_sensor);
+    Serial.println(float_sensor_state);
+    if(float_sensor_state == LOW){
+      
+      Serial.println("Opening Solenoid");
+      open_solenoid();
+      delay(500);
+      
+      Serial.println("Sending message");
+      snprintf(topic, 32, "home/garden_water_zone_1");
+      snprintf(msg, 64, "Watering", device_id);
+      client.publish(topic,msg);
+      WateringStart = millis();
+
+      Serial.println("Starting waterpump");
+      start_water_pump();
+      
+      do{
+        float_sensor_state = digitalRead(float_sensor);
+        currentMillis = millis();
+        
+        delay(1000);
+
+      }while(float_sensor_state == LOW && (currentMillis - WateringStart <= water_time));
+      
+      Serial.println("Stopping waterpump");
+      stop_water_pump();
+      
+      Serial.println("Closing solenoid");
+      close_solenoid();
+      
+      snprintf(topic, 32, "home/garden_water_zone_1");
+      snprintf(msg, 64, "Done", device_id);
+      client.publish(topic,msg); 
+    }else
+    {
+      Serial.println("Water level to low");
+      snprintf(topic, 32, "home/garden_water_zone_1");
+      snprintf(msg, 64, "Water level to low", device_id);
+      client.publish(topic,msg); 
+    }
+    
   }
 
   
@@ -192,14 +229,16 @@ void loop() {
   client.loop();
 
   //Only update light sensor if the interval has passed.
-  unsigned long currentMillis = millis();
+  currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     // save the last time you updated sensor
     previousMillis = currentMillis;
     Serial.println("Reading light sensor");
     int light = read_light_sensor(); 
     snprintf(topic, 32, "home/garden_light_sensor");
-    snprintf(msg, 64, light, device_id);
+    String pubString =String(light);
+    pubString.toCharArray(message_buff,pubString.length()+1);
+    snprintf(msg, 64, message_buff, device_id);
     client.publish(topic,msg); 
   }   
 }
