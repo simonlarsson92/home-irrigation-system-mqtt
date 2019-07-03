@@ -11,6 +11,8 @@
 #include <LiquidCrystal_I2C.h>
 #include <PubSubClient.h>
 
+
+
 //Analog inputs
 int sensor_pin = A0;
 
@@ -120,19 +122,17 @@ void callback(char* topic, byte* payload, unsigned int length)
   {
     Serial.println("Reading moisture sensor 1");
     int sensor_1 = read_moisture_sensor();
-    snprintf(topic, 32, "home/garden_moisture_sensor_1");
-    String pubString =String(sensor_1);
-    pubString.toCharArray(message_buff,pubString.length()+1);
-    snprintf(msg, 64, message_buff, device_id);
-    client.publish(topic,msg); 
     delay(1000);
     Serial.println("Reading moisture sensor 2");
     int sensor_2 = read_moisture_sensor2(); 
-    snprintf(topic, 32, "home/garden_moisture_sensor_2");
-    String pubString2 =String(sensor_2);
-    pubString.toCharArray(message_buff,pubString2.length()+1);
-    snprintf(msg, 64, message_buff, device_id);
-    client.publish(topic,msg); 
+    String pubString = "{\"Moisture\": {\"Sensor_1\":" + String(sensor_1)+ ",\"Sensor_2\":" + String(sensor_2)+ "}}";
+    pubString.toCharArray(message_buff,pubString.length()+1);
+    snprintf(msg, 128, message_buff, device_id);
+    Serial.println("Sending");
+    Serial.println(topic);
+    Serial.println(msg);
+    client.loop();
+    Serial.println(client.publish("home/garden_moisture_sensor",msg)); 
     
   }
   else if(strcmp(msg,"water_zone_1") == 0)
@@ -146,9 +146,8 @@ void callback(char* topic, byte* payload, unsigned int length)
       delay(500);
       
       Serial.println("Sending message");
-      snprintf(topic, 32, "home/garden_water_zone_1");
-      snprintf(msg, 64, "Watering", device_id);
-      client.publish(topic,msg);
+      snprintf(msg, 64, "{\"zone1\":\"Watering\"}", device_id);
+      client.publish("home/garden_water_zone_1",msg);
       WateringStart = millis();
 
       Serial.println("Starting waterpump");
@@ -167,16 +166,15 @@ void callback(char* topic, byte* payload, unsigned int length)
       
       Serial.println("Closing solenoid");
       close_solenoid();
-      
-      snprintf(topic, 32, "home/garden_water_zone_1");
-      snprintf(msg, 64, "Done", device_id);
-      client.publish(topic,msg); 
+      Serial.println("Sending message");
+      snprintf(msg, 64, "{\"zone1\":\"Done\"}", device_id);
+      client.publish("home/garden_water_zone_1",msg);
+      Serial.println("done watering!");
     }else
     {
       Serial.println("Water level to low");
-      snprintf(topic, 32, "home/garden_water_zone_1");
-      snprintf(msg, 64, "Water level to low", device_id);
-      client.publish(topic,msg); 
+      snprintf(msg, 64, "{\"waterLevel\":\"Low\"}", device_id);
+      client.publish("home/garden_water",msg); 
     }
     
   }
@@ -236,7 +234,7 @@ void loop() {
     Serial.println("Reading light sensor");
     int light = read_light_sensor(); 
     snprintf(topic, 32, "home/garden_light_sensor");
-    String pubString =String(light);
+    String pubString = "{\"light\":" + String(light)+ "}";
     pubString.toCharArray(message_buff,pubString.length()+1);
     snprintf(msg, 64, message_buff, device_id);
     client.publish(topic,msg); 
