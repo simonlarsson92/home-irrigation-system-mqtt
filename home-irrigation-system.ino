@@ -18,8 +18,8 @@ int sensor_pin = A0;
 
 //Digital outputs
 int float_sensor = D2;
-int solenoid_1 = D3;
-int water_pump = D4;
+int solenoid_1 = D1;
+int water_pump = D8;
 int light_sensor_vcc = D5;
 int moisture_sensor_vcc = D6;
 int moisture_sensor2_vcc = D7;
